@@ -1,0 +1,44 @@
+{
+  "name": "dsh-prompt-optimizer",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "提示词优化按钮：在发送键左侧一键调用模型把当前输入改写成更清晰的提示词。",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "prompt"
+  ],
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MCJF28/dsh-prompt-optimizer.git"
+  },
+  "homepage": "https://github.com/MCJF28/dsh-prompt-optimizer",
+  "bugs": {
+    "url": "https://github.com/MCJF28/dsh-prompt-optimizer/issues"
+  },
+  "author": "MCJF28"
+}
