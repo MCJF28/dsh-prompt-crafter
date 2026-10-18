@@ -6,6 +6,8 @@
 
 输入框右侧的「优化」按钮：写完一段话按一下，让模型把它改写成更容易被执行好的提示词。
 
+**完全免费。** 插件自带一个免费模型通道，装好即用，不需要任何账号、API Key 或付费——你发送的每一条优化请求都不消耗对话额度。免费通道不可用时自动回退到你当前对话的模型，功能永远不会因为免费通道挂掉而失效。
+
 ## 用法
 
 1. 在输入框写下你想说的话（可以很随意）
@@ -33,32 +35,27 @@
 
 除了提示词，还有一道工程兜底：短的非任务输入配上了远超它的输出时，自动改用「精简」档重试一次。
 
-## 免费通道
+## 模型：三选一
 
-装好插件后，右下角会弹一次窗问你要不要开启免费通道。
+设置 → 优化里的「优化用的模型」：
 
-- **开启**：优化优先走内置的免费模型，不消耗对话额度；
-- **暂不开启**：直接用当前对话的模型；
-- **问过就不再问**。之后随时可以在「设置 → 优化 → 免费通道」里改。
+| 选项 | 做什么 |
+|---|---|
+| **免费通道**（标着「优先」） | 走插件内置的免费模型，**零成本、无需配置**；打开设置页会自动测试连通性，也可以手动重测 |
+| **自动** | 跟随当前对话正在使用的模型 |
+| **手动** | 固定用一个模型，从完整模型列表里选 |
 
-**核心保证：免费通道不可用时自动回退。** 额度用完、网络不通、上游故障、返回空内容——任何一种情况下，优化都会改用当前对话正在使用的模型继续跑完，按钮不会因为免费通道挂了而失效。回退原因会记在设置页里，方便判断是通道问题还是模型问题。
+**免费通道的免费是字面意义的免费**：插件内置了一个公开的模型端点，所有安装者共用，你不花一分钱，也不需要注册任何服务。作为交换，它有额度上限、可能偶尔拥挤——所以它失败时自动改用你当前对话的模型跑完，设置页会显示回退原因。
 
-想换成自己的额度时，用环境变量覆盖即可：
+连通性测试：选中「免费通道」后，设置页会发一句 `Hi` 给免费通道，显示耗时和回复。这是端到端验证——绿点表示真的收到了模型回应，不是空连接。
+
+想换成自己的额度（更稳、更快），用环境变量覆盖即可：
 
 ```bash
 DSH_FREE_CHANNEL_BASE_URL=https://your-endpoint/v1
 DSH_FREE_CHANNEL_API_KEY=sk-...
 DSH_FREE_CHANNEL_MODEL=your-model
 ```
-
-> 内置凭据对所有安装者可见——这是「免费通道」这个形态的必然代价。介意的话就用上面三个环境变量换成自己的。
-
-## 模型
-
-设置 → 优化里的「优化用的模型」：
-
-- **自动**（默认）：跟随当前对话正在使用的模型
-- **手动**：固定用一个模型，从完整模型列表里选
 
 自动模式靠监听 `agent/request` 事件记下每个会话实际调用的路由。这是唯一能在 HTTP 路由里拿到「当前对话模型」的入口——`agents.currentInitiator()` 只在模型调用链里有效，`sessions.binding()` 在浏览器上下文不可用。
 
@@ -83,7 +80,6 @@ pnpm add dsh-prompt-enhancer
 
 然后把包名加进 `dsh.profile.bundles`，重启应用。
 
-
 ## 存储
 
 `~/.dsh/prompt-optimizer/settings.json`
@@ -95,6 +91,8 @@ pnpm add dsh-prompt-enhancer
 **English** | [中文](#chinese)
 
 An **Optimize** button next to the send key: write a draft, press it once, and let the model rewrite it into a prompt that is easier to execute well.
+
+**Completely free.** The plugin ships with a free model channel that works out of the box — no account, no API key, no payment. Every optimization request costs you nothing from your conversation budget, and if the free channel is unavailable, the plugin falls back to your current conversation's model automatically. The button never stops working because the free channel did.
 
 ## Usage
 
@@ -123,32 +121,27 @@ Without that rule, "ok, good job" gets rewritten by Detailed into a full documen
 
 Beyond the prompt itself there is an engineering backstop: when a short, non-task input produces an output far longer than itself, the plugin retries once with Brief.
 
-## Free channel
+## Model: three choices
 
-Right after install, a small prompt in the bottom-right corner asks whether to enable the free channel.
+"Model for optimization" under Settings → Optimize:
 
-- **Enable**: optimization goes through a bundled free model and costs no conversation budget;
-- **Not now**: the current conversation's model is used instead;
-- **Asked once, not again.** Change it anytime at Settings → Optimize → Free channel.
+| Option | What it does |
+|---|---|
+| **Free channel** (tagged "priority") | Uses the bundled free model — **zero cost, zero configuration**. Opening the settings page probes connectivity automatically; you can re-test manually |
+| **Automatic** | Follow the model the current conversation is using |
+| **Manual** | Pin one model, chosen from the full model list |
 
-**The guarantee that matters: the free channel falls back automatically.** Quota exhausted, network failure, upstream error, empty response — in every one of those cases the optimization continues on the model the current conversation uses. The button never dies because the free channel did. The fallback reason is recorded on the settings page, so you can tell a channel problem from a model problem.
+**The free channel is free in the literal sense**: the plugin embeds a public model endpoint shared by all installers. You pay nothing and sign up for nothing. In exchange it has quota limits and can get crowded — so when it fails, the optimization continues on your current conversation's model, and the settings page shows why.
 
-To use your own quota instead, override it with environment variables:
+Connectivity probe: selecting "Free channel" sends a literal `Hi` to the endpoint and reports the round-trip latency and the reply. That is end-to-end verification — a green dot means a real model response came back, not just an open socket.
+
+To use your own quota instead (more stable, faster), override it with environment variables:
 
 ```bash
 DSH_FREE_CHANNEL_BASE_URL=https://your-endpoint/v1
 DSH_FREE_CHANNEL_API_KEY=sk-...
 DSH_FREE_CHANNEL_MODEL=your-model
 ```
-
-> The bundled credential is visible to everyone who installs the package — an unavoidable cost of shipping a free channel. If that bothers you, point the three variables above at your own.
-
-## Model
-
-"Model for optimization" under Settings → Optimize:
-
-- **Automatic** (default): follow the model the current conversation is using
-- **Manual**: pin one model, chosen from the full model list
 
 Automatic mode works by listening to `agent/request` and recording the route each conversation actually calls. That is the only way to reach "the model this conversation is using" from an HTTP route — `agents.currentInitiator()` only works inside the model call chain, and `sessions.binding()` is unavailable in the browser context.
 
@@ -172,7 +165,6 @@ pnpm add dsh-prompt-enhancer
 ```
 
 Add the package name to `dsh.profile.bundles` and restart the app.
-
 
 ## Storage
 
