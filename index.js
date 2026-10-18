@@ -514,6 +514,43 @@ export function apply(ctx) {
     },
   })
 
+  // ── 免费通道连通性测试 ──────────────────────────────────────────────────
+  //
+  // 发一句 "Hi"，看能不能收到回应。设置页每次打开会先跑一次，
+  // 用户也可以点「重新测试」手动触发 —— 这样"免费通道到底通不通"是可见的，
+  // 而不是等按下优化按钮才发现。
+  ctx.webServer.register({
+    kind: 'exact',
+    path: '/dsh-prompt-enhancer/free-channel/test',
+    handler: async (req, res) => {
+      const started = Date.now()
+      try {
+        const reply = await callFreeChannel(
+          '你是一个连通性测试助手。用一句话回复即可，不要展开。',
+          'Hi',
+        )
+        const elapsed = Date.now() - started
+        const ok = reply.length > 0
+        res.writeHead(200, JSON_HEADERS)
+        res.end(JSON.stringify({
+          ok,
+          ms: elapsed,
+          reply: reply.slice(0, 120),
+          model: FREE_CHANNEL.model,
+          error: ok ? null : '返回空内容',
+        }))
+      } catch (error) {
+        res.writeHead(200, JSON_HEADERS)
+        res.end(JSON.stringify({
+          ok: false,
+          ms: Date.now() - started,
+          model: FREE_CHANNEL.model,
+          error: String(error?.message ?? error),
+        }))
+      }
+    },
+  })
+
   // ── 优化 ────────────────────────────────────────────────────────────────
 
   ctx.webServer.register({

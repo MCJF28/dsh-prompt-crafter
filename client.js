@@ -103,7 +103,15 @@ window.__ModuleLoader__.load({
   box-shadow:inset 0 0 0 1px var(--dsw-alias-brand-primary);
 }
 .dsho-card-icon{display:block;flex:none;width:20px;height:20px}
-.dsho-card-label{font-size:13px;font-weight:500;line-height:18px;white-space:nowrap}
+.dsho-card-label{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:500;line-height:18px;white-space:nowrap}
+/* 「优先」这类小标签：跟随品牌色，透明底，不抢主文字的注意力 */
+.dsho-card-badge{
+  font-size:10px;line-height:14px;font-weight:500;
+  padding:0 5px;border-radius:999px;
+  color:var(--dsw-alias-brand-primary);
+  background:color-mix(in srgb,var(--dsw-alias-brand-primary) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--dsw-alias-brand-primary) 25%,transparent);
+}
 
 /* 下拉：自绘，避免原生 select 与主题不一致 */
 .dsho-select{position:relative;display:block;width:100%}
@@ -179,6 +187,37 @@ window.__ModuleLoader__.load({
 /* 内容换档时淡入，而不是硬切。key 变化会重建节点，动画才会重放。 */
 .dsho-fade{animation:dsho-fadein .16s ease-out}
 @keyframes dsho-fadein{from{opacity:0}to{opacity:1}}
+/* 免费通道连通性探测行 */
+.dsho-probe{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:8px 10px;
+  border:1px solid var(--dsw-alias-border-l1);
+  border-radius:var(--dsw-radius-sm);
+  background:var(--dsw-alias-bg-layer-1);
+}
+.dsho-probe-dot{
+  flex:none;width:8px;height:8px;border-radius:999px;
+  background:var(--dsw-alias-label-tertiary);
+}
+.dsho-probe-dot[data-state="testing"]{animation:dsho-probe-pulse 1s ease-in-out infinite}
+.dsho-probe-dot[data-state="ok"]{background:var(--dsw-alias-state-success-primary)}
+.dsho-probe-dot[data-state="fail"]{background:var(--dsw-alias-state-error-primary)}
+@keyframes dsho-probe-pulse{0%,100%{opacity:.3}50%{opacity:1}}
+.dsho-probe-text{flex:1;min-width:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.dsho-probe-text[data-state="ok"]{color:var(--dsw-alias-state-success-primary)}
+.dsho-probe-text[data-state="fail"]{color:var(--dsw-alias-state-error-primary)}
+.dsho-probe-retry{
+  appearance:none;flex:none;height:24px;padding:0 10px;
+  border:1px solid var(--dsw-alias-border-l2);
+  border-radius:999px;
+  background:transparent;
+  color:var(--dsw-alias-label-primary);
+  font:inherit;font-size:11px;font-weight:500;
+  cursor:pointer;
+  transition:background-color .1s,border-color .1s;
+}
+.dsho-probe-retry:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
+.dsho-probe-retry:disabled{opacity:.5;cursor:default}
 /* 免费通道卡片：自适应高度，不继承预览卡的最小高度 */
 .dsho-card-auto{min-height:0}
 .dsho-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
@@ -423,7 +462,12 @@ window.__ModuleLoader__.load({
         title: option.summary,
       },
         h(option.Icon),
-        h('span', { className: 'dsho-card-label' }, option.label)
+        h('span', { className: 'dsho-card-label' },
+          option.label,
+          option.badge === undefined
+            ? null
+            : h('span', { className: 'dsho-card-badge' }, option.badge)
+        )
       )))
     }
 
@@ -612,6 +656,31 @@ window.__ModuleLoader__.load({
       }, [])
 
       /**
+       * 免费通道连通性探测。
+       *
+       * 每次打开这一页先跑一次：发一句 "Hi"，收到回应才算通。
+       * 这样"免费通道现在能不能用"是可见的，而不是等按下优化按钮才发现。
+       */
+      const [probe, setProbe] = useState({ phase: 'testing' })
+      const runProbe = useCallback(async () => {
+        setProbe({ phase: 'testing' })
+        try {
+          const result = await postJson('/dsh-prompt-enhancer/free-channel/test', {})
+          setProbe({
+            phase: result.ok === true ? 'ok' : 'fail',
+            ms: result.ms,
+            model: result.model,
+            reply: result.reply,
+            error: result.error,
+          })
+        } catch (err) {
+          setProbe({ phase: 'fail', error: String(err && err.message ? err.message : err) })
+        }
+      }, [])
+
+      useEffect(() => { void runProbe() }, [runProbe])
+
+      /**
        * 保存设置。
        *
        * 刻意**不设 busy**：写的是本地文件，毫秒级完成，不需要忙碌态。
@@ -691,15 +760,17 @@ window.__ModuleLoader__.load({
             '自动：跟随当前对话正在使用的模型；手动：固定用一个模型；免费：优先走内置免费通道。'),
           h(CardChoice, {
             value: draft.modelMode,
+            // 免费通道放最左：它是"优先"的那个选项，也是大多数人该选的。
             options: [
-              { id: 'auto', label: '自动', summary: '跟随当前对话的模型', Icon: IconAuto },
-              { id: 'manual', label: '手动', summary: '固定指定一个模型', Icon: IconManual },
               {
                 id: 'free',
                 label: '免费通道',
-                summary: '内置免费模型，不消耗对话额度',
+                badge: '优先',
+                summary: '内置免费模型，不消耗对话额度；不可用时自动回退',
                 Icon: IconFree,
               },
+              { id: 'auto', label: '自动', summary: '跟随当前对话的模型', Icon: IconAuto },
+              { id: 'manual', label: '手动', summary: '固定指定一个模型', Icon: IconManual },
             ],
             onChange: (value) => { void persist({ ...draft, modelMode: value, freeChannelAsked: true }) },
           }),
@@ -717,6 +788,27 @@ window.__ModuleLoader__.load({
               ? h('div', { className: 'dsho-card dsho-card-auto' },
                   h('div', { className: 'dsho-sec-hint' },
                     `下一次优化将调用：免费通道 / ${data.freeChannel?.model ?? '内置模型'}`),
+                  // 连通性探测：打开本页自动跑一次，也可以手动重测。
+                  h('div', { className: 'dsho-probe' },
+                    h('span', {
+                      className: 'dsho-probe-dot',
+                      'data-state': probe.phase,
+                      'aria-hidden': 'true',
+                    }),
+                    h('span', { className: 'dsho-probe-text', 'data-state': probe.phase },
+                      probe.phase === 'testing'
+                        ? '正在测试免费通道连通性…'
+                        : probe.phase === 'ok'
+                          ? `连通正常（${probe.ms}ms，回复：${probe.reply}）`
+                          : `连接失败：${probe.error ?? '未知原因'}`),
+                    h('button', {
+                      type: 'button',
+                      className: 'dsho-probe-retry',
+                      disabled: probe.phase === 'testing',
+                      onClick: () => { void runProbe() },
+                      title: '发送一句 Hi，测试免费通道是否可用',
+                    }, probe.phase === 'testing' ? '测试中…' : '重新测试')
+                  ),
                   h('div', { className: 'dsho-sec-hint' },
                     '免费通道不可用时，自动回退到当前对话正在使用的模型，按钮不会因此失效。'),
                   data.lastUsed?.source === 'free'
