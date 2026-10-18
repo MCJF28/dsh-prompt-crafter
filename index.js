@@ -1,5 +1,5 @@
 /**
- * dsh-prompt-enhancer —— Host 半区
+ * dsh-prompt-crafter —— Host 半区
  *
  * 两部分：
  *   1. `/optimize`：接收输入框草稿，调用模型改写成更好的提示词，返回文本。
@@ -19,7 +19,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-export const name = 'dsh-prompt-enhancer'
+export const name = 'dsh-prompt-crafter'
 
 /** 需要的服务：LLM 调用 + HTTP 路由。 */
 export const inject = ['llm', 'webServer']
@@ -470,7 +470,7 @@ export function apply(ctx) {
 
   ctx.webServer.register({
     kind: 'exact',
-    path: '/dsh-prompt-enhancer/settings',
+    path: '/dsh-prompt-crafter/settings',
     handler: async (req, res) => {
       try {
         if (req.method === 'POST' || req.method === 'PUT') {
@@ -521,7 +521,7 @@ export function apply(ctx) {
   // 而不是等按下优化按钮才发现。
   ctx.webServer.register({
     kind: 'exact',
-    path: '/dsh-prompt-enhancer/free-channel/test',
+    path: '/dsh-prompt-crafter/free-channel/test',
     handler: async (req, res) => {
       const started = Date.now()
       try {
@@ -555,7 +555,7 @@ export function apply(ctx) {
 
   ctx.webServer.register({
     kind: 'exact',
-    path: '/dsh-prompt-enhancer/optimize',
+    path: '/dsh-prompt-crafter/optimize',
     handler: async (req, res) => {
       try {
         if (req.method !== 'POST') {

@@ -1,5 +1,5 @@
 /**
- * dsh-prompt-enhancer —— Client 半区
+ * dsh-prompt-crafter —— Client 半区
  *
  * 两个界面：
  *   1. `conversation.input.right`：发送键左侧的「优化」按钮。
@@ -14,7 +14,7 @@
  */
 
 window.__ModuleLoader__.load({
-  id: 'dsh-prompt-enhancer',
+  id: 'dsh-prompt-crafter',
   factory(require) {
     const React = require('react')
     const h = React.createElement
@@ -548,14 +548,14 @@ window.__ModuleLoader__.load({
     }
 
     function optimize(text, sessionId) {
-      return postJson('/dsh-prompt-enhancer/optimize', { text, sessionId })
+      return postJson('/dsh-prompt-crafter/optimize', { text, sessionId })
     }
 
     async function readSettings(sessionId) {
       const query = typeof sessionId === 'string' && sessionId.length > 0
         ? `?sessionId=${encodeURIComponent(sessionId)}`
         : ''
-      const response = await fetch(`/dsh-prompt-enhancer/settings${query}`)
+      const response = await fetch(`/dsh-prompt-crafter/settings${query}`)
       const data = await response.json().catch(() => ({}))
       if (!response.ok || data.ok === false) {
         throw new Error(data.error || `HTTP ${response.status}`)
@@ -665,7 +665,7 @@ window.__ModuleLoader__.load({
       const runProbe = useCallback(async () => {
         setProbe({ phase: 'testing' })
         try {
-          const result = await postJson('/dsh-prompt-enhancer/free-channel/test', {})
+          const result = await postJson('/dsh-prompt-crafter/free-channel/test', {})
           setProbe({
             phase: result.ok === true ? 'ok' : 'fail',
             ms: result.ms,
@@ -691,7 +691,7 @@ window.__ModuleLoader__.load({
         setDraft(next)
         setStatus(null)
         try {
-          const saved = await postJson('/dsh-prompt-enhancer/settings', next)
+          const saved = await postJson('/dsh-prompt-crafter/settings', next)
           setData((previous) => (previous === null ? previous : { ...previous, settings: saved.settings }))
           setStatus({
             kind: saved.saved ? 'ok' : 'err',
@@ -904,7 +904,7 @@ window.__ModuleLoader__.load({
       const decide = useCallback(async (enable) => {
         setBusy(true)
         try {
-          await postJson('/dsh-prompt-enhancer/settings', enable
+          await postJson('/dsh-prompt-crafter/settings', enable
             // 选择开启就是切到「免费通道」这个模型选项，不再有单独的开关。
             ? { modelMode: 'free', freeChannelAsked: true }
             : { freeChannelAsked: true })
@@ -984,7 +984,7 @@ window.__ModuleLoader__.load({
      * 颜色跟随 `currentColor` —— 选中时文字变蓝，图标自动跟着变蓝。
      */
     const NAV_ATTR = 'dshnav'
-    const NAV_VALUE = 'dsh-prompt-enhancer'
+    const NAV_VALUE = 'dsh-prompt-crafter'
     const NAV_LABEL = '优化'
 
     /** 双星图标（与输入框的优化按钮同一形状），stroke 用纯黑供 mask 取 alpha。 */
@@ -1070,21 +1070,21 @@ button[data-${NAV_ATTR}="${NAV_VALUE}"]::before{
 
         ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
           name: 'conversation.input.right',
-          id: 'dsh-prompt-enhancer',
+          id: 'dsh-prompt-crafter',
           order: 10,
           label: () => '优化',
         }, safe(OptimizeButton)))
 
         ctx.slots.inject('settings.section', () => ctx.slots.register({
           name: 'settings.section',
-          id: 'dsh-prompt-enhancer',
+          id: 'dsh-prompt-crafter',
           order: 45,
           label: () => '优化',
         }, safe(SettingsPage)))
 
         ctx.slots.inject('shell.overlay', () => ctx.slots.register({
           name: 'shell.overlay',
-          id: 'dsh-prompt-enhancer-free',
+          id: 'dsh-prompt-crafter-free',
           order: 60,
           label: () => '免费通道',
         }, safe(FreeChannelPrompt)))

@@ -1,5 +1,5 @@
 {
-  "name": "dsh-prompt-enhancer",
+  "name": "dsh-prompt-crafter",
   "version": "1.2.2",
   "type": "module",
   "description": "提示词优化按钮（完全免费）：一键把输入改写成更清晰的提示词。内置免费模型通道，零配置零费用，不可用时自动回退到对话模型。",
@@ -34,11 +34,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MCJF28/dsh-prompt-enhancer.git"
+    "url": "git+https://github.com/MCJF28/dsh-prompt-crafter.git"
   },
-  "homepage": "https://github.com/MCJF28/dsh-prompt-enhancer",
+  "homepage": "https://github.com/MCJF28/dsh-prompt-crafter",
   "bugs": {
-    "url": "https://github.com/MCJF28/dsh-prompt-enhancer/issues"
+    "url": "https://github.com/MCJF28/dsh-prompt-crafter/issues"
   },
   "author": "MCJF28"
 }

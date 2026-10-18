@@ -1,4 +1,4 @@
-# dsh-prompt-enhancer
+# dsh-prompt-crafter
 
 <a id="chinese"></a>
 
@@ -66,7 +66,7 @@ DSH_FREE_CHANNEL_MODEL=your-model
 **推荐：内置插件安装程序。** 打开「设置 → 内置插件」，粘贴包名，点安装，再重启应用：
 
 ```
-dsh-prompt-enhancer
+dsh-prompt-crafter
 ```
 
 安装程序会自动写进 `dsh.profile.bundles`，不用手改任何文件。
@@ -75,7 +75,7 @@ dsh-prompt-enhancer
 
 ```bash
 cd ~/.dsh/profiles/desktop
-pnpm add dsh-prompt-enhancer
+pnpm add dsh-prompt-crafter
 ```
 
 然后把包名加进 `dsh.profile.bundles`，重启应用。
@@ -152,7 +152,7 @@ The settings page shows "last actual call". That value is recorded by code, so i
 **The built-in plugin installer is the recommended way.** Open Settings → Built-in Plugins, paste the package name, press install, then restart the app:
 
 ```
-dsh-prompt-enhancer
+dsh-prompt-crafter
 ```
 
 The installer writes the entry into `dsh.profile.bundles` for you; no manual file edits.
@@ -161,7 +161,7 @@ From the command line (quit the app completely first):
 
 ```bash
 cd ~/.dsh/profiles/desktop
-pnpm add dsh-prompt-enhancer
+pnpm add dsh-prompt-crafter
 ```
 
 Add the package name to `dsh.profile.bundles` and restart the app.
