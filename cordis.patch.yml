@@ -1,4 +1,4 @@
-# dsh-prompt-optimizer —— bundle patch
+# dsh-prompt-enhancer —— bundle patch
 - insert:
-    - id: dsh-prompt-optimizer
-      name: dsh-prompt-optimizer
+    - id: dsh-prompt-enhancer
+      name: dsh-prompt-enhancer

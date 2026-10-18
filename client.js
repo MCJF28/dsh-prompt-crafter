@@ -1,5 +1,5 @@
 /**
- * dsh-prompt-optimizer —— Client 半区
+ * dsh-prompt-enhancer —— Client 半区
  *
  * 两个界面：
  *   1. `conversation.input.right`：发送键左侧的「优化」按钮。
@@ -14,7 +14,7 @@
  */
 
 window.__ModuleLoader__.load({
-  id: 'dsh-prompt-optimizer',
+  id: 'dsh-prompt-enhancer',
   factory(require) {
     const React = require('react')
     const h = React.createElement
@@ -417,14 +417,14 @@ window.__ModuleLoader__.load({
     }
 
     function optimize(text, sessionId) {
-      return postJson('/dsh-prompt-optimizer/optimize', { text, sessionId })
+      return postJson('/dsh-prompt-enhancer/optimize', { text, sessionId })
     }
 
     async function readSettings(sessionId) {
       const query = typeof sessionId === 'string' && sessionId.length > 0
         ? `?sessionId=${encodeURIComponent(sessionId)}`
         : ''
-      const response = await fetch(`/dsh-prompt-optimizer/settings${query}`)
+      const response = await fetch(`/dsh-prompt-enhancer/settings${query}`)
       const data = await response.json().catch(() => ({}))
       if (!response.ok || data.ok === false) {
         throw new Error(data.error || `HTTP ${response.status}`)
@@ -535,7 +535,7 @@ window.__ModuleLoader__.load({
         setDraft(next)
         setStatus(null)
         try {
-          const saved = await postJson('/dsh-prompt-optimizer/settings', next)
+          const saved = await postJson('/dsh-prompt-enhancer/settings', next)
           setData((previous) => (previous === null ? previous : { ...previous, settings: saved.settings }))
           setStatus({
             kind: saved.saved ? 'ok' : 'err',
@@ -713,7 +713,7 @@ window.__ModuleLoader__.load({
      * 颜色跟随 `currentColor` —— 选中时文字变蓝，图标自动跟着变蓝。
      */
     const NAV_ATTR = 'dshnav'
-    const NAV_VALUE = 'dsh-prompt-optimizer'
+    const NAV_VALUE = 'dsh-prompt-enhancer'
     const NAV_LABEL = '优化'
 
     /** 双星图标（与输入框的优化按钮同一形状），stroke 用纯黑供 mask 取 alpha。 */
@@ -799,14 +799,14 @@ button[data-${NAV_ATTR}="${NAV_VALUE}"]::before{
 
         ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
           name: 'conversation.input.right',
-          id: 'dsh-prompt-optimizer',
+          id: 'dsh-prompt-enhancer',
           order: 10,
           label: () => '优化',
         }, safe(OptimizeButton)))
 
         ctx.slots.inject('settings.section', () => ctx.slots.register({
           name: 'settings.section',
-          id: 'dsh-prompt-optimizer',
+          id: 'dsh-prompt-enhancer',
           order: 45,
           label: () => '优化',
         }, safe(SettingsPage)))
