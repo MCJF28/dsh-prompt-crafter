@@ -148,14 +148,13 @@ const STYLE_ITEMS = [
 
 /** 默认设置。auto + balanced 是「不用配置也能用」的组合。 */
 const DEFAULT_SETTINGS = {
+  /** 'auto' 跟随当前对话 · 'manual' 固定一个 · 'free' 优先免费通道 */
   modelMode: 'auto',
   provider: '',
   model: '',
   style: 'balanced',
   customPrompt: '',
-  /** 免费通道开关：开启后优先用它，失败自动回退到会话模型。 */
-  freeChannel: false,
-  /** 是否已经问过用户要不要开启免费通道（首次安装时弹一次窗）。 */
+  /** 是否已经问过用户要不要用免费通道（首次安装时弹一次窗）。 */
   freeChannelAsked: false,
 }
 
@@ -217,7 +216,14 @@ function loadSettings() {
 
 function normalizeSettings(input) {
   const raw = input !== null && typeof input === 'object' ? input : {}
-  const modelMode = raw.modelMode === 'manual' ? 'manual' : 'auto'
+  // 三选一：auto 跟随对话 / manual 固定模型 / free 优先免费通道。
+  // 兼容旧版布尔开关：曾经用 freeChannel:true 表示免费通道。
+  let modelMode = 'auto'
+  if (raw.modelMode === 'manual') modelMode = 'manual'
+  else if (raw.modelMode === 'free') modelMode = 'free'
+  else if (raw.modelMode === 'auto') modelMode = 'auto'
+  else if (raw.freeChannel === true) modelMode = 'free'
+
   const style = typeof raw.style === 'string' && STYLE_IDS.has(raw.style) ? raw.style : 'balanced'
   return {
     modelMode,
@@ -225,7 +231,6 @@ function normalizeSettings(input) {
     model: typeof raw.model === 'string' ? raw.model : '',
     style,
     customPrompt: typeof raw.customPrompt === 'string' ? raw.customPrompt : '',
-    freeChannel: raw.freeChannel === true,
     freeChannelAsked: raw.freeChannelAsked === true,
   }
 }
@@ -564,7 +569,7 @@ export function apply(ctx) {
          */
         const enhanceOnce = async (system, input) => {
           let freeError
-          if (settings.freeChannel) {
+          if (settings.modelMode === 'free') {
             try {
               const out = await callFreeChannel(system, input)
               if (out.length > 0) return { text: out, usedFree: true }
@@ -637,7 +642,7 @@ export function apply(ctx) {
           source: usedFree ? 'free' : (first.route?.source ?? 'session'),
           recovered,
           freeChannel: {
-            enabled: settings.freeChannel,
+            enabled: settings.modelMode === 'free',
             used: usedFree,
             error: first.freeError ?? null,
           },

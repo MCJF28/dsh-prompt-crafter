@@ -337,6 +337,13 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** 免费通道：闪电（不花额度、即开即用）。 */
+    function IconFree() {
+      return h(LineIcon, null,
+        h('path', { d: 'M13 3L5 13h6l-1 8 8-10h-6l1-8z' })
+      )
+    }
+
     /**
      * 精简：压缩。
      *
@@ -681,14 +688,20 @@ window.__ModuleLoader__.load({
         h('div', { className: 'dsho-sec' },
           h('div', { className: 'dsho-sec-title' }, '优化用的模型'),
           h('div', { className: 'dsho-sec-hint' },
-            '自动：跟随当前对话正在使用的模型；手动：固定用一个模型。'),
+            '自动：跟随当前对话正在使用的模型；手动：固定用一个模型；免费：优先走内置免费通道。'),
           h(CardChoice, {
             value: draft.modelMode,
             options: [
               { id: 'auto', label: '自动', summary: '跟随当前对话的模型', Icon: IconAuto },
               { id: 'manual', label: '手动', summary: '固定指定一个模型', Icon: IconManual },
+              {
+                id: 'free',
+                label: '免费通道',
+                summary: '内置免费模型，不消耗对话额度',
+                Icon: IconFree,
+              },
             ],
-            onChange: (value) => { void persist({ ...draft, modelMode: value }) },
+            onChange: (value) => { void persist({ ...draft, modelMode: value, freeChannelAsked: true }) },
           }),
           draft.modelMode === 'manual'
             ? h(Select, {
@@ -700,22 +713,35 @@ window.__ModuleLoader__.load({
                   void persist({ ...draft, provider, model })
                 },
               })
-            : h('div', { className: 'dsho-card' },
-                h('div', { className: 'dsho-sec-hint' },
+            : draft.modelMode === 'free'
+              ? h('div', { className: 'dsho-card dsho-card-auto' },
+                  h('div', { className: 'dsho-sec-hint' },
+                    `下一次优化将调用：免费通道 / ${data.freeChannel?.model ?? '内置模型'}`),
+                  h('div', { className: 'dsho-sec-hint' },
+                    '免费通道不可用时，自动回退到当前对话正在使用的模型，按钮不会因此失效。'),
+                  data.lastUsed?.source === 'free'
+                    ? h('div', { className: 'dsho-sec-hint' }, '上次优化走的是免费通道。')
+                    : data.lastUsed?.freeError
+                      ? h('div', { className: 'dsho-sec-hint', 'data-kind': 'warn' },
+                          `上次免费通道不可用：${data.lastUsed.freeError}（已回退到对话模型）`)
+                      : null
+                )
+              : h('div', { className: 'dsho-card' },
+                  h('div', { className: 'dsho-sec-hint' },
+                    resolved === undefined || resolved === null
+                      ? '还没取到当前对话的模型。先在对话里发一条消息，这里就会跟上。'
+                      : `下一次优化将调用：${resolved.provider} / ${resolved.model}`),
                   resolved === undefined || resolved === null
-                    ? '还没取到当前对话的模型。先在对话里发一条消息，这里就会跟上。'
-                    : `下一次优化将调用：${resolved.provider} / ${resolved.model}`),
-                resolved === undefined || resolved === null
-                  ? null
-                  : h('div', { className: 'dsho-sec-hint' },
-                      `来源：${SOURCE_LABEL[resolved.source] ?? resolved.source}`),
-                data.lastUsed === undefined || data.lastUsed === null
-                  ? null
-                  : h('div', { className: 'dsho-sec-hint' },
-                      `上次实际调用：${data.lastUsed.provider} / ${data.lastUsed.model}`
-                      + `（${SOURCE_LABEL[data.lastUsed.source] ?? data.lastUsed.source}，`
-                      + `力度「${data.lastUsed.style}」）`)
-              )
+                    ? null
+                    : h('div', { className: 'dsho-sec-hint' },
+                        `来源：${SOURCE_LABEL[resolved.source] ?? resolved.source}`),
+                  data.lastUsed === undefined || data.lastUsed === null
+                    ? null
+                    : h('div', { className: 'dsho-sec-hint' },
+                        `上次实际调用：${data.lastUsed.provider} / ${data.lastUsed.model}`
+                        + `（${SOURCE_LABEL[data.lastUsed.source] ?? data.lastUsed.source}，`
+                        + `力度「${data.lastUsed.style}」）`)
+                )
         ),
 
         // 风格
@@ -748,40 +774,6 @@ window.__ModuleLoader__.load({
                   className: 'dsho-preview dsho-fade',
                 }, currentStyle === undefined ? '' : currentStyle.prompt)
               )
-        ),
-
-        // 免费通道
-        h('div', { className: 'dsho-sec' },
-          h('div', { className: 'dsho-sec-title' }, '免费通道'),
-          h('div', { className: 'dsho-card dsho-card-auto' },
-            h('div', { className: 'dsho-row' },
-              h('div', { className: 'dsho-row-label' },
-                h('div', { className: 'dsho-row-name' }, '优先使用免费模型'),
-                h('div', { className: 'dsho-row-desc' },
-                  '开启后优化优先走内置免费通道（' + (data.freeChannel?.model ?? '内置模型')
-                  + '），不消耗对话额度；免费通道不可用时自动回退到当前对话的模型。')
-              ),
-              h('button', {
-                type: 'button',
-                className: 'dsho-switch',
-                role: 'switch',
-                'aria-checked': draft.freeChannel === true,
-                onClick: () => {
-                  void persist({ ...draft, freeChannel: draft.freeChannel !== true, freeChannelAsked: true })
-                },
-                title: draft.freeChannel === true ? '点击关闭免费通道' : '点击开启免费通道',
-              }, h('span', { className: 'dsho-knob' }))
-            ),
-            data.lastUsed?.source === 'free'
-              ? h('div', { className: 'dsho-sec-hint' }, '上次优化走的是免费通道。')
-              : data.lastUsed?.freeError
-                ? h('div', { className: 'dsho-sec-hint', 'data-kind': 'warn' },
-                    `上次免费通道不可用：${data.lastUsed.freeError}（已回退到对话模型）`)
-                : h('div', { className: 'dsho-sec-hint' },
-                    draft.freeChannel === true
-                      ? '已开启。免费通道失败时会自动切回对话模型。'
-                      : '未开启，优化直接使用当前对话的模型。')
-          )
         ),
 
         status === null
@@ -820,10 +812,10 @@ window.__ModuleLoader__.load({
       const decide = useCallback(async (enable) => {
         setBusy(true)
         try {
-          await postJson('/dsh-prompt-enhancer/settings', {
-            freeChannel: enable,
-            freeChannelAsked: true,
-          })
+          await postJson('/dsh-prompt-enhancer/settings', enable
+            // 选择开启就是切到「免费通道」这个模型选项，不再有单独的开关。
+            ? { modelMode: 'free', freeChannelAsked: true }
+            : { freeChannelAsked: true })
         } catch {
           /* 保存失败也别让浮层一直挡着 */
         } finally {
