@@ -212,36 +212,52 @@ window.__ModuleLoader__.load({
      * 退化成浏览器默认排版，还盖到了侧边栏上。
      */
     const TOAST_CSS = `
+/*
+ * 对齐原生设计系统：
+ *   · 卡片 —— bg-layer-2 + 1px border-l1 + radius-lg(16px) + elevation-soft，
+ *     与宿主的对话框同一个配方；用 radius-panel(28px) 会圆得像气泡。
+ *   · 按钮 —— 胶囊形（999px），主按钮用 button-primary-fill 填充，
+ *     文字色必须用 label-primary-foreground（反色）。早先用 #fff 配白色品牌色，
+ *     字和底一个颜色，看起来就是个空白块。
+ */
 .dsho-toast{
   position:fixed;right:16px;bottom:16px;z-index:1000;
-  width:320px;max-width:calc(100vw - 32px);
-  display:flex;flex-direction:column;gap:10px;
-  padding:14px 16px;
+  width:300px;max-width:calc(100vw - 32px);
+  display:flex;flex-direction:column;gap:8px;
+  padding:12px 14px;
   box-sizing:border-box;
-  border-radius:var(--dsw-radius-panel);
-  border:1px solid var(--dsw-alias-border-l2);
-  border-left:3px solid var(--dsw-alias-brand-primary);
-  background:var(--dsw-alias-bg-overlay);
+  border-radius:var(--dsw-radius-lg,16px);
+  border:1px solid var(--dsw-alias-border-l1);
+  background:var(--dsw-alias-bg-layer-2);
   color:var(--dsw-alias-label-primary);
   box-shadow:var(--dsw-elevation-soft);
-  animation:dsho-toast-in .18s ease-out;
+  animation:dsho-toast-in .16s ease-out;
 }
-@keyframes dsho-toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.dsho-toast-title{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary)}
+@keyframes dsho-toast-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.dsho-toast-title{font-size:13px;font-weight:600;line-height:20px;color:var(--dsw-alias-label-primary)}
 .dsho-toast-body{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
-.dsho-toast-actions{display:flex;gap:8px;justify-content:flex-end}
+.dsho-toast-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:2px}
 .dsho-toast-btn{
-  appearance:none;height:28px;padding:0 12px;
+  appearance:none;
+  height:28px;padding:0 14px;
+  border-radius:999px;
   border:1px solid var(--dsw-alias-border-l2);
-  border-radius:var(--dsw-radius-sm);
-  background:transparent;color:var(--dsw-alias-label-primary);
-  font:inherit;font-size:12px;font-weight:500;cursor:pointer;
+  background:transparent;
+  color:var(--dsw-alias-label-primary);
+  font:inherit;font-size:12px;font-weight:500;
+  cursor:pointer;
+  transition:background-color .1s,border-color .1s,color .1s;
 }
-.dsho-toast-btn:hover{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
+.dsho-toast-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
+.dsho-toast-btn:disabled{opacity:.5;cursor:default}
 .dsho-toast-btn[data-primary="true"]{
-  background:var(--dsw-alias-brand-primary);
-  border-color:var(--dsw-alias-brand-primary);
-  color:#fff;
+  border-color:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));
+  background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));
+  color:var(--dsw-alias-label-primary-foreground,#fff);
+}
+.dsho-toast-btn[data-primary="true"]:hover:not(:disabled){
+  border-color:var(--dsw-alias-button-primary-fill-hover,var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary)));
+  background:var(--dsw-alias-button-primary-fill-hover,var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary)));
 }
 `
 
