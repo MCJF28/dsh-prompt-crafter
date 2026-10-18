@@ -202,12 +202,22 @@ window.__ModuleLoader__.load({
   transition:transform .15s;
 }
 .dsho-switch[aria-checked="true"] .dsho-knob{transform:translateX(16px)}
-/* 首次安装的免费通道询问：右下角浮层 */
+`
+
+    /**
+     * 浮层样式单独一份。
+     *
+     * 必须跟着浮层组件一起渲染：shell.overlay 与设置页是两个独立槽位，
+     * 设置页里注入的 <style> 管不到浮层 —— 早先共用 PAGE_CSS 时浮层完全没样式，
+     * 退化成浏览器默认排版，还盖到了侧边栏上。
+     */
+    const TOAST_CSS = `
 .dsho-toast{
-  position:fixed;right:16px;bottom:16px;z-index:900;
+  position:fixed;right:16px;bottom:16px;z-index:1000;
   width:320px;max-width:calc(100vw - 32px);
   display:flex;flex-direction:column;gap:10px;
   padding:14px 16px;
+  box-sizing:border-box;
   border-radius:var(--dsw-radius-panel);
   border:1px solid var(--dsw-alias-border-l2);
   border-left:3px solid var(--dsw-alias-brand-primary);
@@ -813,6 +823,8 @@ window.__ModuleLoader__.load({
         role: 'dialog',
         'aria-label': '开启免费通道',
       },
+        // 样式必须由这个组件自己注入：它渲染在 shell.overlay，拿不到设置页的 <style>。
+        h('style', null, TOAST_CSS),
         h('div', { className: 'dsho-toast-title' }, '开启免费通道？'),
         h('div', { className: 'dsho-toast-body' },
           '提示词优化可以走内置的免费模型，不消耗你的对话额度。'

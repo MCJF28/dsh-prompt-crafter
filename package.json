@@ -1,6 +1,6 @@
 {
   "name": "dsh-prompt-enhancer",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "description": "提示词优化按钮：在发送键左侧一键调用模型把当前输入改写成更清晰的提示词。",
   "keywords": [
