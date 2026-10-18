@@ -153,6 +153,28 @@ const DEFAULT_SETTINGS = {
   model: '',
   style: 'balanced',
   customPrompt: '',
+  /** 免费通道开关：开启后优先用它，失败自动回退到会话模型。 */
+  freeChannel: false,
+  /** 是否已经问过用户要不要开启免费通道（首次安装时弹一次窗）。 */
+  freeChannelAsked: false,
+}
+
+/**
+ * 免费通道：一个 OpenAI 兼容端点。
+ *
+ * 它是「零配置」的那条路：用户不必自己选模型，开箱就能优化。
+ * 但免费通道可能随时不可用（额度、网络、上游故障），所以**永远作为首选而非唯一**：
+ * 调用失败或返回空时静默回退到当前对话正在用的模型，用户不会因此用不了这个按钮。
+ *
+ * 凭据内置在这里，等于对所有安装者公开 —— 这是「免费通道」这个产品的取舍，
+ * 因此也提供 API Key 环境变量覆盖，方便换成自己的额度。
+ */
+const FREE_CHANNEL = {
+  baseURL: process.env.DSH_FREE_CHANNEL_BASE_URL || 'https://api.hcnsec.cn/v1',
+  apiKey: process.env.DSH_FREE_CHANNEL_API_KEY
+    || 'sk-KF7KZR2M9xwq1rve7j7N0KYGgbmDfrwwuxrf2CI9Bvd7olPP',
+  model: process.env.DSH_FREE_CHANNEL_MODEL || 'DeepSeek-V4-Flash',
+  timeoutMs: 60000,
 }
 
 const STYLE_IDS = new Set(STYLE_ITEMS.map((item) => item.id).concat('custom'))
@@ -203,6 +225,8 @@ function normalizeSettings(input) {
     model: typeof raw.model === 'string' ? raw.model : '',
     style,
     customPrompt: typeof raw.customPrompt === 'string' ? raw.customPrompt : '',
+    freeChannel: raw.freeChannel === true,
+    freeChannelAsked: raw.freeChannelAsked === true,
   }
 }
 
@@ -279,6 +303,49 @@ async function readBody(req) {
   const chunks = []
   for await (const chunk of req) chunks.push(chunk)
   return Buffer.concat(chunks).toString('utf8')
+}
+
+/**
+ * 调一次免费通道，返回纯文本。
+ *
+ * 走 OpenAI 兼容的 /chat/completions，非流式：这个按钮要的是「一次替换掉输入框」，
+ * 流式反而会让草稿逐字变化，体验更差。
+ * 任何异常都向上抛，由调用方决定回退 —— 这里不吞错，否则没法在设置页显示原因。
+ */
+async function callFreeChannel(system, input) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), FREE_CHANNEL.timeoutMs)
+  try {
+    const response = await fetch(`${FREE_CHANNEL.baseURL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${FREE_CHANNEL.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: FREE_CHANNEL.model,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: input },
+        ],
+      }),
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '')
+      throw new Error(`免费通道 HTTP ${response.status}${detail ? '：' + detail.slice(0, 120) : ''}`)
+    }
+
+    const data = await response.json()
+    const content = data?.choices?.[0]?.message?.content
+    return typeof content === 'string' ? content.trim() : ''
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error(`免费通道超时（${FREE_CHANNEL.timeoutMs / 1000}s）`)
+    throw error
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 /** 从流式响应里拼出完整文本。 */
@@ -429,6 +496,11 @@ export function apply(ctx) {
           hasSession: sessionId.length > 0,
           sessionKnown: knownSession,
           lastUsed,
+          // 免费通道的展示信息（不返回 API Key）
+          freeChannel: {
+            model: FREE_CHANNEL.model,
+            baseURL: FREE_CHANNEL.baseURL,
+          },
         }))
       } catch (error) {
         res.writeHead(500, JSON_HEADERS)
@@ -483,18 +555,32 @@ export function apply(ctx) {
           }
         }
 
-        const route = resolveRoute(sessionId, agent)
-        if (route === undefined) {
-          res.writeHead(400, JSON_HEADERS)
-          res.end(JSON.stringify({
-            ok: false,
-            error: '取不到可用模型。请到「设置 → 优化」选择模型，或先在「设置 → 模型」里选一个。',
-          }))
-          return
-        }
+        /**
+         * 尝试一次改写。
+         *
+         * 顺序：免费通道（若用户开启）→ 当前对话的模型。
+         * 免费通道失败不报错、不打断，只把原因记下来给设置页显示，
+         * 然后照常用会话模型跑完 —— 用户按下按钮就该拿到结果。
+         */
+        const enhanceOnce = async (system, input) => {
+          let freeError
+          if (settings.freeChannel) {
+            try {
+              const out = await callFreeChannel(system, input)
+              if (out.length > 0) return { text: out, usedFree: true }
+              freeError = '免费通道返回空内容'
+            } catch (error) {
+              freeError = String(error?.message ?? error)
+            }
+          }
 
-        /** 调一次模型，返回纯文本。 */
-        const callModel = async (system, input) => {
+          const route = resolveRoute(sessionId, agent)
+          if (route === undefined) {
+            throw new Error(freeError
+              ? `免费通道不可用（${freeError}），且取不到当前对话的模型`
+              : '取不到可用模型。请到「设置 → 优化」选择模型，或先在「设置 → 模型」里选一个。')
+          }
+
           const stream = ctx.llm.stream({
             provider: route.provider,
             model: route.model,
@@ -502,10 +588,12 @@ export function apply(ctx) {
             messages: [{ role: 'user', content: [{ type: 'text', text: input }] }],
             maxTokens: 4096,
           })
-          return (await collectText(stream)).trim()
+          return { text: (await collectText(stream)).trim(), usedFree: false, freeError, route }
         }
 
-        let optimized = await callModel(systemPromptFor(settings), text)
+        const first = await enhanceOnce(systemPromptFor(settings), text)
+        let optimized = first.text
+        let usedFree = first.usedFree
         if (optimized.length === 0) {
           res.writeHead(502, JSON_HEADERS)
           res.end(JSON.stringify({ ok: false, error: '模型没有返回内容，请重试' }))
@@ -518,19 +606,24 @@ export function apply(ctx) {
         let recovered = false
         if (looksOverExpanded(text, optimized)) {
           const briefPrompt = STYLE_ITEMS.find((item) => item.id === 'brief').prompt
-          const retry = await callModel(briefPrompt, text)
-          if (retry.length > 0 && retry.length < optimized.length) {
-            optimized = retry
+          const retry = await enhanceOnce(briefPrompt, text)
+          if (retry.text.length > 0 && retry.text.length < optimized.length) {
+            optimized = retry.text
             recovered = true
+            usedFree = retry.usedFree
           }
         }
 
+        const provider = usedFree ? 'free-channel' : (first.route?.provider ?? 'unknown')
+        const model = usedFree ? FREE_CHANNEL.model : (first.route?.model ?? 'unknown')
+
         // 记录本次真实使用的路由，供设置页核实。
         lastUsed = {
-          provider: route.provider,
-          model: route.model,
-          source: route.source,
+          provider,
+          model,
+          source: usedFree ? 'free' : (first.route?.source ?? 'session'),
           style: settings.style,
+          freeError: first.freeError,
           at: Date.now(),
         }
 
@@ -538,11 +631,16 @@ export function apply(ctx) {
         res.end(JSON.stringify({
           ok: true,
           text: optimized,
-          provider: route.provider,
-          model: route.model,
+          provider,
+          model,
           style: settings.style,
-          source: route.source,
+          source: usedFree ? 'free' : (first.route?.source ?? 'session'),
           recovered,
+          freeChannel: {
+            enabled: settings.freeChannel,
+            used: usedFree,
+            error: first.freeError ?? null,
+          },
         }))
       } catch (error) {
         res.writeHead(500, JSON_HEADERS)

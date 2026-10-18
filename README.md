@@ -33,6 +33,26 @@
 
 除了提示词，还有一道工程兜底：短的非任务输入配上了远超它的输出时，自动改用「精简」档重试一次。
 
+## 免费通道
+
+装好插件后，右下角会弹一次窗问你要不要开启免费通道。
+
+- **开启**：优化优先走内置的免费模型，不消耗对话额度；
+- **暂不开启**：直接用当前对话的模型；
+- **问过就不再问**。之后随时可以在「设置 → 优化 → 免费通道」里改。
+
+**核心保证：免费通道不可用时自动回退。** 额度用完、网络不通、上游故障、返回空内容——任何一种情况下，优化都会改用当前对话正在使用的模型继续跑完，按钮不会因为免费通道挂了而失效。回退原因会记在设置页里，方便判断是通道问题还是模型问题。
+
+想换成自己的额度时，用环境变量覆盖即可：
+
+```bash
+DSH_FREE_CHANNEL_BASE_URL=https://your-endpoint/v1
+DSH_FREE_CHANNEL_API_KEY=sk-...
+DSH_FREE_CHANNEL_MODEL=your-model
+```
+
+> 内置凭据对所有安装者可见——这是「免费通道」这个形态的必然代价。介意的话就用上面三个环境变量换成自己的。
+
 ## 模型
 
 设置 → 优化里的「优化用的模型」：
@@ -102,6 +122,26 @@ All three levels first **classify the input**: acknowledgements, thanks, small t
 Without that rule, "ok, good job" gets rewritten by Detailed into a full document with goals, background, steps, constraints and acceptance criteria — which is just noise inserted into your prompt.
 
 Beyond the prompt itself there is an engineering backstop: when a short, non-task input produces an output far longer than itself, the plugin retries once with Brief.
+
+## Free channel
+
+Right after install, a small prompt in the bottom-right corner asks whether to enable the free channel.
+
+- **Enable**: optimization goes through a bundled free model and costs no conversation budget;
+- **Not now**: the current conversation's model is used instead;
+- **Asked once, not again.** Change it anytime at Settings → Optimize → Free channel.
+
+**The guarantee that matters: the free channel falls back automatically.** Quota exhausted, network failure, upstream error, empty response — in every one of those cases the optimization continues on the model the current conversation uses. The button never dies because the free channel did. The fallback reason is recorded on the settings page, so you can tell a channel problem from a model problem.
+
+To use your own quota instead, override it with environment variables:
+
+```bash
+DSH_FREE_CHANNEL_BASE_URL=https://your-endpoint/v1
+DSH_FREE_CHANNEL_API_KEY=sk-...
+DSH_FREE_CHANNEL_MODEL=your-model
+```
+
+> The bundled credential is visible to everyone who installs the package — an unavoidable cost of shipping a free channel. If that bothers you, point the three variables above at your own.
 
 ## Model
 

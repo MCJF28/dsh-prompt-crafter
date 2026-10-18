@@ -179,6 +179,60 @@ window.__ModuleLoader__.load({
 /* 内容换档时淡入，而不是硬切。key 变化会重建节点，动画才会重放。 */
 .dsho-fade{animation:dsho-fadein .16s ease-out}
 @keyframes dsho-fadein{from{opacity:0}to{opacity:1}}
+/* 免费通道卡片：自适应高度，不继承预览卡的最小高度 */
+.dsho-card-auto{min-height:0}
+.dsho-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.dsho-row-label{display:flex;flex-direction:column;gap:3px;min-width:0}
+.dsho-row-name{font-size:13px;font-weight:500;color:var(--dsw-alias-label-primary)}
+.dsho-row-desc{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.dsho-status[data-kind="warn"]{color:var(--dsw-alias-state-warn-primary)}
+/* 开关：与宿主设置页同款 40×24 / 圆点 20 / 位移 16 */
+.dsho-switch{
+  position:relative;flex:none;
+  width:40px;height:24px;padding:0;
+  border:0;border-radius:999px;
+  background:var(--dsw-alias-border-l2);
+  cursor:pointer;transition:background-color .15s;
+}
+.dsho-switch[aria-checked="true"]{background:var(--dsw-alias-state-business-primary)}
+.dsho-knob{
+  position:absolute;top:2px;left:2px;
+  width:20px;height:20px;border-radius:999px;
+  background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);
+  transition:transform .15s;
+}
+.dsho-switch[aria-checked="true"] .dsho-knob{transform:translateX(16px)}
+/* 首次安装的免费通道询问：右下角浮层 */
+.dsho-toast{
+  position:fixed;right:16px;bottom:16px;z-index:900;
+  width:320px;max-width:calc(100vw - 32px);
+  display:flex;flex-direction:column;gap:10px;
+  padding:14px 16px;
+  border-radius:var(--dsw-radius-panel);
+  border:1px solid var(--dsw-alias-border-l2);
+  border-left:3px solid var(--dsw-alias-brand-primary);
+  background:var(--dsw-alias-bg-overlay);
+  color:var(--dsw-alias-label-primary);
+  box-shadow:var(--dsw-elevation-soft);
+  animation:dsho-toast-in .18s ease-out;
+}
+@keyframes dsho-toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.dsho-toast-title{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary)}
+.dsho-toast-body{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.dsho-toast-actions{display:flex;gap:8px;justify-content:flex-end}
+.dsho-toast-btn{
+  appearance:none;height:28px;padding:0 12px;
+  border:1px solid var(--dsw-alias-border-l2);
+  border-radius:var(--dsw-radius-sm);
+  background:transparent;color:var(--dsw-alias-label-primary);
+  font:inherit;font-size:12px;font-weight:500;cursor:pointer;
+}
+.dsho-toast-btn:hover{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
+.dsho-toast-btn[data-primary="true"]{
+  background:var(--dsw-alias-brand-primary);
+  border-color:var(--dsw-alias-brand-primary);
+  color:#fff;
+}
 `
 
     // ── 图标 ──────────────────────────────────────────────────────────────
@@ -670,9 +724,114 @@ window.__ModuleLoader__.load({
               )
         ),
 
+        // 免费通道
+        h('div', { className: 'dsho-sec' },
+          h('div', { className: 'dsho-sec-title' }, '免费通道'),
+          h('div', { className: 'dsho-card dsho-card-auto' },
+            h('div', { className: 'dsho-row' },
+              h('div', { className: 'dsho-row-label' },
+                h('div', { className: 'dsho-row-name' }, '优先使用免费模型'),
+                h('div', { className: 'dsho-row-desc' },
+                  '开启后优化优先走内置免费通道（' + (data.freeChannel?.model ?? '内置模型')
+                  + '），不消耗对话额度；免费通道不可用时自动回退到当前对话的模型。')
+              ),
+              h('button', {
+                type: 'button',
+                className: 'dsho-switch',
+                role: 'switch',
+                'aria-checked': draft.freeChannel === true,
+                onClick: () => {
+                  void persist({ ...draft, freeChannel: draft.freeChannel !== true, freeChannelAsked: true })
+                },
+                title: draft.freeChannel === true ? '点击关闭免费通道' : '点击开启免费通道',
+              }, h('span', { className: 'dsho-knob' }))
+            ),
+            data.lastUsed?.source === 'free'
+              ? h('div', { className: 'dsho-sec-hint' }, '上次优化走的是免费通道。')
+              : data.lastUsed?.freeError
+                ? h('div', { className: 'dsho-sec-hint', 'data-kind': 'warn' },
+                    `上次免费通道不可用：${data.lastUsed.freeError}（已回退到对话模型）`)
+                : h('div', { className: 'dsho-sec-hint' },
+                    draft.freeChannel === true
+                      ? '已开启。免费通道失败时会自动切回对话模型。'
+                      : '未开启，优化直接使用当前对话的模型。')
+          )
+        ),
+
         status === null
           ? null
           : h('div', { className: 'dsho-status', 'data-kind': status.kind }, status.text)
+      )
+    }
+
+    // ── 首次安装的免费通道询问 ────────────────────────────────────────────
+
+    /**
+     * 装好插件后问一次：要不要开启免费通道。
+     *
+     * 只问一次 —— 服务端把 `freeChannelAsked` 写进设置，问过就不再出现。
+     * 不自动消失：这是个需要用户表态的选择，自动消失等于替他做了决定。
+     */
+    function FreeChannelPrompt() {
+      // loading → 还没读到设置；ask → 要问；hidden → 不问
+      const [phase, setPhase] = useState('loading')
+      const [busy, setBusy] = useState(false)
+
+      useEffect(() => {
+        let alive = true
+        void (async () => {
+          try {
+            const settings = await readSettings()
+            if (!alive) return
+            setPhase(settings?.settings?.freeChannelAsked === true ? 'hidden' : 'ask')
+          } catch {
+            if (alive) setPhase('hidden')
+          }
+        })()
+        return () => { alive = false }
+      }, [])
+
+      const decide = useCallback(async (enable) => {
+        setBusy(true)
+        try {
+          await postJson('/dsh-prompt-enhancer/settings', {
+            freeChannel: enable,
+            freeChannelAsked: true,
+          })
+        } catch {
+          /* 保存失败也别让浮层一直挡着 */
+        } finally {
+          setBusy(false)
+          setPhase('hidden')
+        }
+      }, [])
+
+      if (phase !== 'ask') return null
+
+      return h('div', {
+        className: 'dsho-toast',
+        role: 'dialog',
+        'aria-label': '开启免费通道',
+      },
+        h('div', { className: 'dsho-toast-title' }, '开启免费通道？'),
+        h('div', { className: 'dsho-toast-body' },
+          '提示词优化可以走内置的免费模型，不消耗你的对话额度。'
+          + '免费通道不可用时会自动切回当前对话使用的模型，不影响使用。'),
+        h('div', { className: 'dsho-toast-actions' },
+          h('button', {
+            type: 'button',
+            className: 'dsho-toast-btn',
+            disabled: busy,
+            onClick: () => { void decide(false) },
+          }, '暂不开启'),
+          h('button', {
+            type: 'button',
+            className: 'dsho-toast-btn',
+            'data-primary': 'true',
+            disabled: busy,
+            onClick: () => { void decide(true) },
+          }, '开启')
+        )
       )
     }
 
@@ -810,6 +969,13 @@ button[data-${NAV_ATTR}="${NAV_VALUE}"]::before{
           order: 45,
           label: () => '优化',
         }, safe(SettingsPage)))
+
+        ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+          name: 'shell.overlay',
+          id: 'dsh-prompt-enhancer-free',
+          order: 60,
+          label: () => '免费通道',
+        }, safe(FreeChannelPrompt)))
       },
     }
   },
